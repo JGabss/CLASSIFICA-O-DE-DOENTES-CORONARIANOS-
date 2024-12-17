@@ -1,13 +1,22 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import os
 import gspread
+from google.oauth2.service_account import Credentials
+import json
 
+# Carregando as credenciais do arquivo secrets.toml
+service_account_info = st.secrets["SERVICE_ACCOUNT_JSON"]
 
-gc = gspread.service_account(filename='credentials.json')
-sh = gc.open("Telemonitoramento")  # Substitua pelo nome da sua planilha
-worksheet = sh.sheet1  # Use a primeira aba da planilha
+SCOPES = [service_account_info["SCOPES1"], service_account_info["SCOPES2"]]
+creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+
+# Autorize o cliente
+client = gspread.authorize(creds)
+
+# Acessando a planilha
+spreadsheet = client.open("Telemonitoramento")  # Substitua pelo nome da sua planilha
+worksheet = spreadsheet.sheet1
 
 def salvar_paciente_google_sheets(dados_paciente):
     worksheet.append_row(dados_paciente.values.flatten().tolist())
@@ -143,29 +152,27 @@ st.markdown("## Visualizar Pacientes Salvos")
 
 # Botão para exibir pacientes
 if st.button("Exibir Todos os Pacientes"):
-    # Verificar se o arquivo CSV existe
-    if os.path.exists("dados_paciente.csv"):
-        # Ler os dados do CSV e especificar os tipos de dados
-        colunas = [
+    # Ler os dados do CSV e especificar os tipos de dados
+    colunas = [
             'Nome', 'BA', 'creatinina_serica', 'reoperacao', 'insuficiencia_mitral', 
             'idade', 'cirurgia_vascular_previa', 'dpoc', 'anemia', 'estenose_aortica', 
             'peso', 'diabetes', 'doenca_cerebrovascular', 'angina_instavel', 
             'lesao_tronco_coronaria', 'valva_aortica', 'fracao_ejecao_ventriculo', 'sexo', "escore", "risco", "grupo"
         ]
-        df_pacientes = ler_pacientes_google_sheets()
+    df_pacientes = ler_pacientes_google_sheets()
 
         # Converter os tipos de dados
-        df_pacientes['idade'] = pd.to_numeric(df_pacientes['idade'], errors='coerce')
-        df_pacientes['creatinina_serica'] = pd.to_numeric(df_pacientes['creatinina_serica'], errors='coerce')
-        df_pacientes['peso'] = pd.to_numeric(df_pacientes['peso'], errors='coerce')
-        df_pacientes['fracao_ejecao_ventriculo'] = pd.to_numeric(df_pacientes['fracao_ejecao_ventriculo'], errors='coerce')
+    df_pacientes['idade'] = pd.to_numeric(df_pacientes['idade'], errors='coerce')
+    df_pacientes['creatinina_serica'] = pd.to_numeric(df_pacientes['creatinina_serica'], errors='coerce')
+    df_pacientes['peso'] = pd.to_numeric(df_pacientes['peso'], errors='coerce')
+    df_pacientes['fracao_ejecao_ventriculo'] = pd.to_numeric(df_pacientes['fracao_ejecao_ventriculo'], errors='coerce')
 
         # Ordenar os pacientes por uma coluna, como 'Nome' ou 'idade'
-        coluna_ordenacao = st.selectbox("Ordenar por", options=colunas, index=0)
-        df_pacientes = df_pacientes.sort_values(by=coluna_ordenacao, ascending=True)
+    coluna_ordenacao = st.selectbox("Ordenar por", options=colunas, index=0)
+    df_pacientes = df_pacientes.sort_values(by=coluna_ordenacao, ascending=True)
 
         # Exibir os dados na interface
-        st.write("### Pacientes Ordenados por:", coluna_ordenacao)
-        st.dataframe(df_pacientes)
-    else:
-        st.warning("Nenhum dado foi salvo ainda.")
+    st.write("### Pacientes Ordenados por:", coluna_ordenacao)
+    st.dataframe(df_pacientes)
+
+
